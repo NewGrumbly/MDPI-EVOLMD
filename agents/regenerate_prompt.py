@@ -13,7 +13,7 @@ class RegeneratePromptOutput(BaseModel):
     """
     prompt: str = Field(
         ...,
-        description="A single high-quality prompt string generated using the given keywords, role, topic, and reference text."
+        description="A high-quality instruction (prompt) to guide another LLM, using the given keywords and is aligned with the role, topic, and reference text."
     )
 
 def _get_system_prompt() -> str:
@@ -21,10 +21,9 @@ def _get_system_prompt() -> str:
     return f"""
     You are an AI prompt engineer. Your task is to create ONE high-quality instruction prompt that:
     - Will be given directly to another LLM to generate text.
-    - Must be clearly written from the perspective of the specified role.
     - Must align with the given topic.
     - Must explicitly incorporate and focus on the provided keywords.
-    - Must be thematically aligned with the reference text.
+    - Must be thematically aligned with the reference text, role and topic.
     - The prompt must be concise (1–2 sentences, max 2 lines).
 
     STRICT RULES:

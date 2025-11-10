@@ -15,7 +15,7 @@ class PromptOutput(BaseModel):
     """
     prompt: str = Field(
         ...,
-        description="A single high-quality prompt string generated for the given role, topic, and reference text."
+        description="A high-quality instruction (prompt) to guide another LLM, aligned with the role, topic, and reference text."
     )
 
 def _get_system_prompt() -> str:
@@ -28,7 +28,6 @@ def _get_system_prompt() -> str:
     - Will be given directly to another LLM to generate text.
     - Must clearly instruct that LLM on what to produce, how, and from what perspective.
     - Fulfills the given topic
-    - Is written from the specified role's perspective
     - Is thematically aligned with the reference text
     - Must be concise and fit within 2 lines of text (about 1–2 sentences).
 
