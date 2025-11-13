@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 import time
 import asyncio
+from tqdm.asyncio import tqdm
 
 from ga_core import setup
 from ga_core import initial_population
@@ -60,7 +61,7 @@ async def main():
     print("3/5 Generando data para la población inicial...")
     t_init_gen0 = time.perf_counter()
     tasks_iniciales = [generar_data_para_individuo(ind, ref_text, llm_agent) for ind in individuos]
-    individuos = await asyncio.gather(*tasks_iniciales)
+    individuos = await tqdm.gather(*tasks_iniciales, desc="Generando data inicial", unit="ind")
     t_init_gen = time.perf_counter() - t_init_gen0
 
     # --- 4. Evaluación Inicial ---

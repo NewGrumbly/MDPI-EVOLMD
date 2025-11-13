@@ -5,6 +5,7 @@ import random
 import json
 import asyncio
 from pathlib import Path
+from tqdm.asyncio import tqdm
 
 # Agentes
 from agents.llm_agent import LLMAgent
@@ -144,7 +145,7 @@ async def generar_poblacion_inicial(
     ]
 
     # Ejecutamos todas las tareas en paralelo
-    resultados = await asyncio.gather(*tasks)
+    resultados = await tqdm.gather(*tasks, desc="Creando población inicial", unit="ind")
     
     # Filtramos los posibles resultados None si alguna creación falló
     individuos = [ind for ind in resultados if ind is not None]

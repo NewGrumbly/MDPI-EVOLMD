@@ -5,6 +5,8 @@ import time
 import asyncio
 from pathlib import Path
 from typing import Dict, Any
+from tqdm import tqdm
+from tqdm.asyncio import tqdm_asyncio
 
 from agents.llm_agent import LLMAgent
 from agents.generate_data import generar_data_con_ollama
@@ -55,9 +57,10 @@ async def metaheuristica(individuos, ref_text, llm_agent: 'LLMAgent', bert_model
                    outdir: Path = Path(".")):
     poblacion = individuos[:]
     evo_t0 = time.perf_counter()
+
     for g in range(generaciones):
         gen_t0 = time.perf_counter()
-        print(f"\n🌀 Generación {g+1}/{generaciones}")
+        print(f"🌀 Generación {g+1}/{generaciones}")
         poblacion.sort(key=lambda x: x["fitness"], reverse=True)
 
         nueva_poblacion = poblacion[:num_elitismo]  # elitismo
@@ -79,7 +82,7 @@ async def metaheuristica(individuos, ref_text, llm_agent: 'LLMAgent', bert_model
         ]
         
         # Ejecutamos todas las tareas en paralelo y esperamos los resultados
-        poblacion_a_evaluar = await asyncio.gather(*tasks)
+        poblacion_a_evaluar = await tqdm_asyncio.gather(*tasks, desc=f"Procesando Gen {g+1}", unit="hijos")
 
         # Evaluamos a TODOS los nuevos individuos en un solo lote
         if poblacion_a_evaluar:
