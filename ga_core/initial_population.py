@@ -46,6 +46,9 @@ TOPICS_DEFAULT = [
     "economic impact of the coronavirus pandemic",
 ]
 
+# === CONFIGURACIÓN ===
+DEFAULT_BATCH_SIZE = 10 
+
 # === Funciones de creación ===
 
 async def crear_un_individuo(
@@ -131,25 +134,43 @@ async def generar_poblacion_inicial(
     5) DEVUELVE la población (lista de individuos) para que GA.py la use.
     """  
     print(f"Generando la población inicial...")
-    
-    # Creamos una lista de tareas, una por cada individuo a crear
-    tasks = [
-        crear_un_individuo(
-            llm_agent=llm_agent,
-            texto_referencia=texto_referencia,
-            role_fijo=role,
-            topic_fijo=topic,
-            temp_prompts=temp_prompts,
-            temp_keywords=temp_keywords
-        ) for _ in range(n)
-    ]
 
-    # Ejecutamos todas las tareas en paralelo
-    resultados = await tqdm.gather(*tasks, desc="Creando población inicial", unit="ind")
-    
-    # Filtramos los posibles resultados None si alguna creación falló
-    individuos = [ind for ind in resultados if ind is not None]
-    
+    individuos = []
+
+    # Configuramos la barra de progreso
+    pbar = tqdm(total=n, desc="Creando población inicial", unit="ind")
+
+    # Mientras no tengamos los 'n' individuos requeridos, seguimos lanzando lotes
+    while len(individuos) < n:
+
+        # Calculamos cuántos nos faltan
+        faltantes = n - len(individuos)
+
+        # El lote actual será de 10 o de los que falten (si faltan menos de 10)
+        batch_size_actual = min(DEFAULT_BATCH_SIZE, faltantes)
+        
+        # Creamos las tareas de ESTE lote
+        tasks = [
+            crear_un_individuo(
+                llm_agent=llm_agent,
+                texto_referencia=texto_referencia,
+                role_fijo=role,
+                topic_fijo=topic,
+                temp_prompts=temp_prompts,
+                temp_keywords=temp_keywords
+            ) for _ in range(batch_size_actual)
+        ]
+        
+        # Ejecutamos el lote y esperamos a que termine
+        resultados_lote = await asyncio.gather(*tasks)
+
+        # Filtramos los válidos
+        validos = [ind for ind in resultados_lote if ind is not None]
+        individuos.extend(validos)
+        pbar.update(len(validos))
+        
+    pbar.close()
+ 
     print(f"Población de {len(individuos)} individuos generada.")
 
     _guardar_json(individuos, archivo_salida)

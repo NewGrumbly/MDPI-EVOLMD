@@ -35,7 +35,7 @@ async def main():
     args = parser.parse_args()
 
     # --- 1. Preparar Entorno ---
-    print("1/5 Preparando directorio del experimento...")
+    print("1/6 Preparando directorio del experimento...")
     outdir, ref_text = setup.setup_experiment(
         base_dir=args.outdir_base,
         texto_referencia_arg=args.texto_referencia
@@ -45,7 +45,7 @@ async def main():
     t_total0 = time.perf_counter()
 
     # --- 2. Crear Agente y Población Inicial ---
-    print(f"2/5 Generando población inicial de {args.n} individuos...")
+    print(f"2/6 Generando población inicial de {args.n} individuos...")
 
     # Se crea una única instancia del agente
     llm_agent = LLMAgent(model=args.model)
@@ -58,14 +58,14 @@ async def main():
     )
 
     # --- 3. Generar Data Inicial ---
-    print("3/5 Generando data para la población inicial...")
+    print("3/6 Generando data para la población inicial...")
     t_init_gen0 = time.perf_counter()
     tasks_iniciales = [generar_data_para_individuo(ind, ref_text, llm_agent) for ind in individuos]
     individuos = await tqdm.gather(*tasks_iniciales, desc="Generando data inicial", unit="ind")
     t_init_gen = time.perf_counter() - t_init_gen0
 
     # --- 4. Evaluación Inicial ---
-    print("4/5 Evaluando fitness de la población inicial...")
+    print("4/6 Evaluando fitness de la población inicial...")
     t_init_eval0 = time.perf_counter()
     individuos = bertscore_individuos(individuos, ref_text, model_type=args.bert_model)
     data_inicial_eval_path = outdir / "data_inicial_evaluada.json"
@@ -74,7 +74,7 @@ async def main():
     append_metrics(outdir, 0, individuos, duration_sec=t_init_eval)
 
     # --- 5. Evolución ---
-    print("5/5 Iniciando evolución...")
+    print("5/6 Iniciando evolución...")
     poblacion_final = await metaheuristica(
         individuos=individuos,
         ref_text=ref_text,
@@ -88,7 +88,8 @@ async def main():
         outdir=outdir,
     )
 
-    # --- Guardado final ---
+    # --- 6. Evaluación y Guardado final ---
+    print("6/6 Iniciando evaluación y guardado final...")
     t_final_eval0 = time.perf_counter()
     poblacion_final_eval = bertscore_individuos(poblacion_final, ref_text, model_type=args.bert_model)
     data_final_eval_path = outdir / "data_final_evaluada.json"

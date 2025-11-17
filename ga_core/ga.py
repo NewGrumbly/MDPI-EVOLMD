@@ -6,7 +6,6 @@ import asyncio
 from pathlib import Path
 from typing import Dict, Any
 from tqdm import tqdm
-from tqdm.asyncio import tqdm_asyncio
 
 from agents.llm_agent import LLMAgent
 from agents.generate_data import generar_data_con_ollama
@@ -15,6 +14,9 @@ from metrics.bert import bertscore_individuos
 from operadores.crossover import crossover
 from operadores.mutation import mutacion
 from metrics.reports import append_metrics
+
+# === CONFIGURACIÓN ===
+CHILD_BATCH_SIZE = 10
 
 async def generar_data_para_individuo(individuo, ref_text, llm_agent: 'LLMAgent', temperatura=0.7):
     out = await generar_data_con_ollama(
@@ -43,52 +45,72 @@ async def procesar_hijo(hijo: dict, ref_text: str, llm_agent: 'LLMAgent', prob_m
     """
     Encapsula toda la lógica de procesamiento (mutación, prompt, data) para un individuo.
     """
-    if random.random() < prob_mutacion:
-        hijo = await mutacion(hijo, llm_agent) # La mutación ahora es asíncrona
-    
-    hijo = await regenerar_prompt(hijo, ref_text, llm_agent)
-    hijo = await generar_data_para_individuo(hijo, ref_text, llm_agent)
-    
-    return hijo
-
+    try:
+        if random.random() < prob_mutacion:
+            hijo = await mutacion(hijo, llm_agent)
+        
+        hijo = await regenerar_prompt(hijo, ref_text, llm_agent)
+        hijo = await generar_data_para_individuo(hijo, ref_text, llm_agent)
+        return hijo
+    except Exception as e:
+        # print(f"⚠️ Error procesando hijo: {e}")
+        return None # Retornamos None para que el bucle sepa que falló
 
 async def metaheuristica(individuos, ref_text, llm_agent: 'LLMAgent', bert_model: str,
                    generaciones=5, k=3, prob_crossover=0.8, prob_mutacion=0.1, num_elitismo=2,
                    outdir: Path = Path(".")):
     poblacion = individuos[:]
+    poblacion_size = len(poblacion)
     evo_t0 = time.perf_counter()
 
     for g in range(generaciones):
         gen_t0 = time.perf_counter()
         print(f"🌀 Generación {g+1}/{generaciones}")
+
+        # Elitismo
         poblacion.sort(key=lambda x: x["fitness"], reverse=True)
+        nueva_poblacion = poblacion[:num_elitismo]
 
-        nueva_poblacion = poblacion[:num_elitismo]  # elitismo
+        # Barra de progreso para hijos nuevos
+        hijos_por_evaluar = []
+        hijos_necesarios = poblacion_size - len(nueva_poblacion) 
+        pbar = tqdm(total=hijos_necesarios, desc=f"Procesando Gen {g+1}", unit="hijos")
+
+        # Llenar hasta completar la población
+        while len(hijos_por_evaluar) < hijos_necesarios:
+            
+            # ¿Cuántos faltan?
+            faltantes = hijos_necesarios - len(hijos_por_evaluar)
+            # Lote actual (máximo 10)
+            batch_size = min(CHILD_BATCH_SIZE, faltantes)
+            
+            # Crear lote de 'Hijos a Procesar'
+            tasks = []
+            for _ in range(batch_size):
+                if random.random() < prob_crossover:
+                    p1, p2 = torneo(poblacion, k=k), torneo(poblacion, k=k)
+                    hijo = crossover(p1, p2)
+                else:
+                    hijo = torneo(poblacion, k=k).copy()
+                tasks.append(procesar_hijo(hijo, ref_text, llm_agent, prob_mutacion))
+            
+            # Ejecutar lote
+            resultados = await asyncio.gather(*tasks)
+            
+            # Filtrar válidos
+            validos = [h for h in resultados if h is not None]
+            
+            # Añadir a la lista de hijos por evaluar
+            hijos_por_evaluar.extend(validos)
+            pbar.update(len(validos))
         
-        # Creamos una lista de hijos sin procesar
-        hijos_a_procesar = []
-
-        while len(nueva_poblacion) + len(hijos_a_procesar) < len(poblacion):
-            if random.random() < prob_crossover:
-                p1, p2 = torneo(poblacion, k=k), torneo(poblacion, k=k)
-                hijo = crossover(p1, p2)
-            else:
-                hijo = torneo(poblacion, k=k).copy()
-            hijos_a_procesar.append(hijo)
-
-        # Creamos una lista de tareas asíncronas
-        tasks = [
-            procesar_hijo(h, ref_text, llm_agent, prob_mutacion) for h in hijos_a_procesar
-        ]
+        pbar.close()
         
-        # Ejecutamos todas las tareas en paralelo y esperamos los resultados
-        poblacion_a_evaluar = await tqdm_asyncio.gather(*tasks, desc=f"Procesando Gen {g+1}", unit="hijos")
-
         # Evaluamos a TODOS los nuevos individuos en un solo lote
-        if poblacion_a_evaluar:
-            poblacion_recien_evaluada = bertscore_individuos(poblacion_a_evaluar, ref_text, model_type=bert_model)
+        if hijos_por_evaluar:
+            hijos_evaluados = bertscore_individuos(hijos_por_evaluar, ref_text, model_type=bert_model)
             # Añadimos los individuos ya evaluados a la nueva población.
-            nueva_poblacion.extend(poblacion_recien_evaluada)
+            nueva_poblacion.extend(hijos_evaluados)
 
         poblacion = nueva_poblacion
         best = max(poblacion, key=lambda x: x["fitness"])
