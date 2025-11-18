@@ -60,10 +60,30 @@ async def main():
     # --- 3. Generar Data Inicial ---
     print("3/6 Generando data para la población inicial...")
     t_init_gen0 = time.perf_counter()
-    tasks_iniciales = [generar_data_para_individuo(ind, ref_text, llm_agent) for ind in individuos]
-    individuos = await tqdm.gather(*tasks_iniciales, desc="Generando data inicial", unit="ind")
-    t_init_gen = time.perf_counter() - t_init_gen0
 
+    BATCH_SIZE = 10
+    individuos_con_data = []
+
+    # Barra de progreso manual
+    pbar = tqdm(total=len(individuos), desc="Generando data inicial", unit="ind")
+
+    # Procesar individuos en lotes
+    for i in range(0, len(individuos), BATCH_SIZE):
+        lote = individuos[i : i + BATCH_SIZE]
+        
+        tasks_iniciales = [generar_data_para_individuo(ind, ref_text, llm_agent) for ind in lote]
+        
+        # Ejecutar lote
+        resultados_lote = await asyncio.gather(*tasks_iniciales)
+        individuos_con_data.extend(resultados_lote)
+        
+        pbar.update(len(lote))
+        
+    pbar.close()
+    individuos = individuos_con_data
+
+    t_init_gen = time.perf_counter() - t_init_gen0
+    
     # --- 4. Evaluación Inicial ---
     print("4/6 Evaluando fitness de la población inicial...")
     t_init_eval0 = time.perf_counter()
