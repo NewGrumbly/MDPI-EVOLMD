@@ -1,72 +1,72 @@
-# Modelo Evolutivo de Prompts
+# Evolutionary Prompt Model
 
-Este proyecto utiliza un Algoritmo Genético (AG) para evolucionar y optimizar automáticamente prompts de LLM. El objetivo es encontrar individuos (compuestos por `role`, `topic`, `prompt` y `keywords`) que generen texto con un alto `fitness` (similitud semántica) respecto a un texto de referencia.
+This project uses a Genetic Algorithm (GA) to automatically evolve and optimize LLM prompts. The goal is to find individuals (composed of `role`, `topic`, `prompt`, and `keywords`) that generate text with high `fitness` (semantic similarity) relative to a reference text.
 
-## 1. Configuración del Entorno
+## 1\. Environment Setup
 
-### Requisitos Previos
+### Prerequisites
 
-* Python 3.10+
-* Un servicio de Ollama corriendo localmente. El `LLMAgent` está configurado para conectarse a `http://127.0.0.1:11434`. Asegúrate de que Ollama esté en ejecución y tenga el modelo que deseas usar (ej. `llama3`).
+  * Python 3.10+
+  * An Ollama service running locally. The `LLMAgent` is configured to connect to `http://127.0.0.1:11434`. Ensure that Ollama is running and has the model you wish to use (e.g., `llama3`).
 
-### Instalación
+### Installation
 
-1.  Clona el repositorio.
-2.  (Opcional pero recomendado) Crea un entorno virtual:
+1.  Clone the repository.
+2.  (Optional but recommended) Create a virtual environment:
     ```bash
     python -m venv venv
-    source venv/bin/activate  # En Windows: venv\Scripts\activate
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
-3.  Instala las dependencias:
+3.  Install dependencies:
     ```bash
     pip install -r requirements.txt
     ```
-4.  La librería `nltk` descargará los modelos necesarios (`wordnet`, `averaged_perceptron_tagger_eng`) automáticamente la primera vez que se ejecute el script de mutación.
+4.  The `nltk` library will automatically download the necessary models (`wordnet`, `averaged_perceptron_tagger_eng`) the first time the mutation script is executed.
 
-## 2. Preparación del Corpus (Paso Único)
+## 2\. Corpus Preparation (One-time Step)
 
-El algoritmo necesita un corpus de textos de referencia. El script `prepare_corpus.py` está diseñado para filtrar un archivo CSV masivo.
+The algorithm requires a corpus of reference texts. The `prepare_corpus.py` script is designed to filter a massive CSV file.
 
-1.  Coloca tu archivo de corpus masivo en la raíz del proyecto y asegúrate de que se llame `corpus.csv`.
-2.  Ejecuta el script de filtrado **una sola vez**:
+1.  Place your massive corpus file in the root of the project and ensure it is named `corpus.csv`.
+2.  Run the filtering script **only once**:
     ```bash
     python prepare_corpus.py
     ```
-3.  Esto generará un nuevo archivo, `corpus_filtrado.csv`, que será utilizado por el algoritmo.
+3.  This will generate a new file, `corpus_filtrado.csv`, which will be used by the algorithm.
 
-## 3. Ejecución del Algoritmo Genético
+## 3\. Running the Genetic Algorithm
 
-El script principal es `main.py`. Se ejecuta desde la terminal y acepta varios argumentos para configurar la ejecución.
+The main script is `main.py`. It is executed from the terminal and accepts various arguments to configure the run.
 
-### Ejemplo de Ejecución
+### Execution Example
 
 ```bash
 python main.py --n 50 --generaciones 10 --model llama3
 ```
 
-### Argumentos Clave
+### Key Arguments
 
-Puedes ver todos los argumentos en `main.py`. Los más importantes son:
+You can view all arguments in `main.py`. The most important ones are:
 
-* `--n` (Requerido): Número de individuos en la población (ej. `50` o `100`).
-* `--generaciones`: Número de generaciones que evolucionará el algoritmo (ej. `10`).
-* `--model`: El nombre del modelo Ollama a utilizar (ej. `llama3`, `mistral`).
-* `--k`: Tamaño del torneo para la selección (ej. `3`).
-* `--prob-crossover`: Probabilidad de cruce (ej. `0.8`).
-* `--prob-mutacion`: Probabilidad de mutación (ej. `0.1`).
-* `--num-elitismo`: Número de individuos de élite que pasan a la siguiente generación (ej. `2`).
-* `--texto-referencia`: (Opcional) Ruta a un archivo `.txt` específico si no quieres usar uno aleatorio del corpus filtrado.
-* `--bert-model`: El modelo a usar para BERTScore (ej. `bert-base-uncased`).
+  * `--n` (Required): Number of individuals in the population (e.g., `50` or `100`).
+  * `--generaciones`: Number of generations the algorithm will evolve (e.g., `10`).
+  * `--model`: The name of the Ollama model to use (e.g., `llama3`, `mistral`).
+  * `--k`: Tournament size for selection (e.g., `3`).
+  * `--prob-crossover`: Crossover probability (e.g., `0.8`).
+  * `--prob-mutacion`: Mutation probability (e.g., `0.1`).
+  * `--num-elitismo`: Number of elite individuals that pass to the next generation (e.g., `2`).
+  * `--texto-referencia`: (Optional) Path to a specific `.txt` file if you do not want to use a random one from the filtered corpus.
+  * `--bert-model`: The model to use for BERTScore (e.g., `bert-base-uncased`).
 
-## 4. Salida y Resultados
+## 4\. Output and Results
 
-Todas las ejecuciones se guardan en el directorio `exec/`.
+All executions are saved in the `exec/` directory.
 
-Cada ejecución crea una carpeta única con un *timestamp* (ej. `exec/2025-11-09_01-08-32/`), que contendrá:
+Each execution creates a unique folder with a *timestamp* (e.g., `exec/2025-11-09_01-08-32/`), which will contain:
 
-* `reference.txt`: El texto de referencia aleatorio usado para esta ejecución.
-* `data_initial_population.json`: Los individuos de la Generación 0 (antes de la evaluación).
-* `data_inicial_evaluada.json`: La Generación 0 con su `fitness` calculado.
-* `data_final_evaluada.json`: La población final después de todas las generaciones.
-* `metrics_gen.csv`: Un CSV con las estadísticas (min, max, media) de fitness de cada generación.
-* `runtime.txt`: Tiempos de ejecución detallados.
+  * `reference.txt`: The random reference text used for this execution.
+  * `data_initial_population.json`: The individuals of Generation 0 (before evaluation).
+  * `data_inicial_evaluada.json`: Generation 0 with its calculated `fitness`.
+  * `data_final_evaluada.json`: The final population after all generations.
+  * `metrics_gen.csv`: A CSV with fitness statistics (min, max, mean) for each generation.
+  * `runtime.txt`: Detailed execution times.
